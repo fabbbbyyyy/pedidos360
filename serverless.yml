@@ -43,6 +43,20 @@ provider:
 custom:
   ordersTable: pedidos360-orders-${self:provider.stage}
   catalogTable: pedidos360-catalog-${self:provider.stage}
+  # serverless-dotenv-plugin por defecto inyecta TODAS las variables del
+  # .env como environment vars de cada Lambda. Acá lo evitamos para las
+  # variables de AWS, porque AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+  # AWS_SESSION_TOKEN y AWS_REGION son nombres reservados por Lambda y
+  # el deploy falla si se intentan setear como env var de una función.
+  # Igual quedan disponibles para los ${env:...} de este archivo.
+  dotenv:
+    exclude:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_REGION
+      - AWS_ACCOUNT_ID
+      - AWS_ROLE_ARN
   esbuild:
     bundle: true
     minify: false
