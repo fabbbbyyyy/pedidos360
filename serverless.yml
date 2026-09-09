@@ -1,0 +1,159 @@
+service: pedidos360-backend
+
+frameworkVersion: '3'
+
+useDotenv: true
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${env:AWS_REGION, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 14
+
+  # IMPORTANTE (cuentas educativas / AWS Academy Learner Lab):
+  # Serverless Framework intenta crear un Rol IAM nuevo por defecto, y las
+  # cuentas educativas normalmente NO permiten crear roles/políticas nuevas.
+  # Por eso reutilizamos el rol ya existente (normalmente "LabRole").
+  # Definí su ARN completo en AWS_ROLE_ARN dentro de tu .env
+  iam:
+    role: ${env:AWS_ROLE_ARN}
+
+  environment:
+    STAGE: ${self:provider.stage}
+    ORDERS_TABLE: ${self:custom.ordersTable}
+    CATALOG_TABLE: ${self:custom.catalogTable}
+
+  httpApi:
+    cors: true
+    authorizers:
+      azureAdAuthorizer:
+        identitySource: $request.header.Authorization
+        issuerUrl: https://login.microsoftonline.com/${env:AZURE_TENANT_ID}/v2.0
+        audience:
+          - ${env:AZURE_API_AUDIENCE}
+
+custom:
+  ordersTable: pedidos360-orders-${self:provider.stage}
+  catalogTable: pedidos360-catalog-${self:provider.stage}
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+    exclude:
+      - '@aws-sdk/*'
+
+package:
+  individually: true
+
+functions:
+  # ============ ms-pedidos360-orders  →  /api/orders/* ============
+  createOrder:
+    handler: src/functions/orders/createOrder/handler.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /api/orders
+          authorizer:
+            name: azureAdAuthorizer
+
+  getOrders:
+    handler: src/functions/orders/getOrders/handler.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /api/orders
+          authorizer:
+            name: azureAdAuthorizer
+
+  getOrder:
+    handler: src/functions/orders/getOrder/handler.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /api/orders/{id}
+          authorizer:
+            name: azureAdAuthorizer
+
+  updateOrderStatus:
+    handler: src/functions/orders/updateOrderStatus/handler.handler
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/orders/{id}/status
+          authorizer:
+            name: azureAdAuthorizer
+
+  deleteOrder:
+    handler: src/functions/orders/deleteOrder/handler.handler
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/orders/{id}
+          authorizer:
+            name: azureAdAuthorizer
+
+  # ============ ms-pedidos360-catalog  →  /api/catalog/* ===========
+  createProduct:
+    handler: src/functions/catalog/createProduct/handler.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /api/catalog
+          authorizer:
+            name: azureAdAuthorizer
+
+  getProducts:
+    handler: src/functions/catalog/getProducts/handler.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /api/catalog
+          authorizer:
+            name: azureAdAuthorizer
+
+  getProduct:
+    handler: src/functions/catalog/getProduct/handler.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /api/catalog/{id}
+          authorizer:
+            name: azureAdAuthorizer
+
+  updateProduct:
+    handler: src/functions/catalog/updateProduct/handler.handler
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/catalog/{id}
+          authorizer:
+            name: azureAdAuthorizer
+
+  deleteProduct:
+    handler: src/functions/catalog/deleteProduct/handler.handler
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/catalog/{id}
+          authorizer:
+            name: azureAdAuthorizer
+
+  # ==================================================================
+  # ms-pedidos360-notify / audit / report
+  # NO se despliegan en esta primera instancia: dependen de RabbitMQ
+  # y Kafka respectivamente. El código queda como esqueleto en
+  # src/functions/{notify,audit,report}/handler.js para cuando se
+  # integren esos servicios de mensajería. Ver README.md.
+  # ==================================================================
+
+resources:
+  - ${file(infra/resources/dynamodb.yml)}

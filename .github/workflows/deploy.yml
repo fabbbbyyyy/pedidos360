@@ -1,0 +1,58 @@
+name: Deploy Backend Serverless
+
+# NOTA IMPORTANTE (cuenta educativa / AWS Academy Learner Lab):
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY y AWS_SESSION_TOKEN son
+# credenciales TEMPORALES que expiran cada pocas horas. Este workflow
+# NO puede renovarlas solo: antes de correrlo (o cuando falle por
+# credenciales expiradas) tenés que actualizar los 3 secrets del
+# repo con los valores nuevos desde el panel de AWS Academy.
+# Esto también explica por qué en otros flujos CI/CD te pedía más
+# parámetros: sin AWS_SESSION_TOKEN las llamadas a la API de AWS con
+# credenciales temporales son rechazadas.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Configurar credenciales AWS (cuenta educativa)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Generamos el único .env que usa serverless-dotenv-plugin,
+      # a partir de los secrets del repo. El archivo vive solo en el
+      # runner de la Action, nunca se commitea.
+      - name: Generar .env para el deploy
+        run: |
+          cat <<EOF > .env
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          AWS_ROLE_ARN=${{ secrets.AWS_ROLE_ARN }}
+          AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+          AZURE_API_AUDIENCE=${{ secrets.AZURE_API_AUDIENCE }}
+          EOF
+
+      - name: Deploy con Serverless Framework
+        run: npx serverless deploy --stage dev
