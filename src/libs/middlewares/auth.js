@@ -13,8 +13,15 @@ const getUserFromEvent = (event) => {
     oid: claims.oid || claims.sub,
     name: claims.name,
     email: claims.preferred_username || claims.email,
+    roles: extractRoles(claims),
     raw: claims,
   };
+};
+
+const extractRoles = (claims) => {
+  const rawRoles = claims.roles;
+  if (!rawRoles) return [];
+  return Array.isArray(rawRoles) ? rawRoles : rawRoles.split(',').map((r) => r.trim());
 };
 
 module.exports = { getUserFromEvent };

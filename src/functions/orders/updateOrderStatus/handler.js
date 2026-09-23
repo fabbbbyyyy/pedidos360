@@ -3,6 +3,8 @@ const { dynamoDb } = require('../../../libs/db/dynamoClient');
 const { success, error } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { updateOrderStatusSchema } = require('../../../models/order.model');
+const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const ORDERS_TABLE = process.env.ORDERS_TABLE;
 
@@ -35,4 +37,4 @@ const handler = async (event) => {
   }
 };
 
-module.exports = { handler: withErrorHandler(handler) };
+module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.orders.updateStatus)(handler)),};

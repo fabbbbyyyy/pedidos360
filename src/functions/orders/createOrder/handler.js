@@ -5,6 +5,8 @@ const { success } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { getUserFromEvent } = require('../../../libs/middlewares/auth');
 const { createOrderSchema } = require('../../../models/order.model');
+const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const ORDERS_TABLE = process.env.ORDERS_TABLE;
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
@@ -63,4 +65,4 @@ const handler = async (event) => {
   return success({ id: orderId, status: 'PENDING', total }, 201);
 };
 
-module.exports = { handler: withErrorHandler(handler) };
+module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.orders.create)(handler)),};

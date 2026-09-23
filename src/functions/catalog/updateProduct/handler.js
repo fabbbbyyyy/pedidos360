@@ -3,6 +3,8 @@ const { dynamoDb } = require('../../../libs/db/dynamoClient');
 const { success, error } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { updateProductSchema } = require('../../../models/product.model');
+const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
@@ -46,4 +48,4 @@ const handler = async (event) => {
   }
 };
 
-module.exports = { handler: withErrorHandler(handler) };
+module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.catalog.update)(handler)),};

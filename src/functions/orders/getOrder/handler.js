@@ -2,6 +2,8 @@ const { GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { dynamoDb } = require('../../../libs/db/dynamoClient');
 const { success, error } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
+const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const ORDERS_TABLE = process.env.ORDERS_TABLE;
 
@@ -16,4 +18,4 @@ const handler = async (event) => {
   return success(result.Item);
 };
 
-module.exports = { handler: withErrorHandler(handler) };
+module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.orders.read)(handler)),};

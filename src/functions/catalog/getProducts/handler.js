@@ -2,6 +2,8 @@ const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const { dynamoDb } = require('../../../libs/db/dynamoClient');
 const { success } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
+const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
@@ -19,4 +21,4 @@ const handler = async (event) => {
   return success(result.Items || []);
 };
 
-module.exports = { handler: withErrorHandler(handler) };
+module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.catalog.read)(handler)),};
