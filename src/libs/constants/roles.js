@@ -1,6 +1,8 @@
 const ROLES = {
-  ADMIN: 'Admin',
-  VIEWER: 'Viewer',
+  ADMIN: 'admin',
+  CLIENTE: 'cliente',
+  AUDITOR: 'auditor',
+  OPERADOR: 'operador'
   // agrega aquí los App Roles reales que tengas definidos en Azure AD
 };
 
