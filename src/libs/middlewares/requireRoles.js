@@ -1,22 +1,23 @@
-const { error: errorResponse } = require('../utils/response');
-const logger = require('../utils/logger');
+const { getUserFromEvent } = require('./auth');
 
-const withErrorHandler = (handler) => async (event, context) => {
-  try {
-    return await handler(event, context);
-  } catch (err) {
-    logger.error('Unhandled error', { message: err.message, stack: err.stack });
+const requireRoles = (...allowedRoles) => (handler) => async (event, context) => {
+  const user = getUserFromEvent(event);
 
-    if (err.name === 'ZodError') {
-      return errorResponse('Datos inválidos', 400, err.errors);
-    }
-
-    if (err.statusCode) {
-      return errorResponse(err.message, err.statusCode);
-    }
-
-    return errorResponse('Error interno del servidor', 500);
+  if (!user) {
+    const err = new Error('No se pudo identificar al usuario autenticado');
+    err.statusCode = 401;
+    throw err;
   }
+
+  const authorized = user.roles.some((r) => allowedRoles.includes(r));
+  if (!authorized) {
+    const err = new Error('No tienes permisos para esta operación');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  event.user = user;
+  return handler(event, context);
 };
 
-module.exports = { withErrorHandler };
+module.exports = { requireRoles };
