@@ -21,7 +21,14 @@ const getUserFromEvent = (event) => {
 const extractRoles = (claims) => {
   const rawRoles = claims.roles;
   if (!rawRoles) return [];
-  return Array.isArray(rawRoles) ? rawRoles : rawRoles.split(',').map((r) => r.trim());
+
+  if (Array.isArray(rawRoles)) return rawRoles;
+
+  const cleaned = rawRoles.replace(/^\[|\]$/g, '');
+  return cleaned
+    .split(',')
+    .map((r) => r.trim())
+    .filter(Boolean);
 };
 
 module.exports = { getUserFromEvent };
