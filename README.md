@@ -116,9 +116,10 @@ AWS_ROLE_ARN=arn:aws:iam::<tu-account-id>:role/LabRole
 ```
 
 `S3_BUCKET` debe ser un nombre globalmente único. El bucket se crea y
-configura mediante CloudFormation al desplegar el stack. CORS está configurado
-actualmente para `http://localhost:5173` en API Gateway, S3 y las respuestas
-de Lambda.
+configura mediante CloudFormation al desplegar el stack. `ALLOWED_ORIGIN` es
+opcional: `http://localhost:5173` siempre queda permitido y, si la variable
+tiene un valor, ese dominio también se agrega a API Gateway, S3 y las
+respuestas de Lambda.
 
 ### Por qué `AWS_ROLE_ARN` y no el rol autogenerado de Serverless
 
@@ -241,6 +242,7 @@ hacer push a `main`. Necesita estos **secrets** en el repo
 - `AZURE_TENANT_ID`
 - `AZURE_API_AUDIENCE`
 - `S3_BUCKET`
+- `ALLOWED_ORIGIN`
 
 **Ojo con Learner Lab**: como las credenciales expiran, el workflow va a
 empezar a fallar solo hasta que actualices `AWS_SESSION_TOKEN` (y
@@ -271,6 +273,7 @@ pedidos360-backend/
 ├── tests/unit/libs/response.test.js
 ├── .github/workflows/deploy.yml
 ├── serverless.yml
+├── serverless.config.js          # origins CORS local + opcional
 ├── package.json
 ├── .env.example
 └── .gitignore

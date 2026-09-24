@@ -15,7 +15,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
-              - http://localhost:5173
+              ${self:custom.allowedOrigins}
             AllowedMethods:
               - PUT
             AllowedHeaders:
