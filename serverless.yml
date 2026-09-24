@@ -32,7 +32,20 @@ provider:
     CATALOG_TABLE: ${self:custom.catalogTable}
 
   httpApi:
-    cors: true
+    cors:
+      allowedOrigins:
+        - http://localhost:5173
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+        - Idempotency-Key
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowCredentials: true
     authorizers:
       azureAdAuthorizer:
         identitySource: $request.header.Authorization
