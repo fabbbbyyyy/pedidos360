@@ -10,7 +10,7 @@ module.exports = {
   orders: {
     create: [ROLES.ADMIN, ROLES.OPERADOR, ROLES.CLIENTE],
     read:   [ROLES.ADMIN, ROLES.OPERADOR, ROLES.CLIENTE],
-    updateStatus: [ROLES.ADMIN, ROLES.OPERADOR, ROLES.CLIENTE],
+    updateStatus: [ROLES.ADMIN, ROLES.OPERADOR],
     delete: [ROLES.ADMIN, ROLES.OPERADOR, ROLES.CLIENTE],
   },
 };

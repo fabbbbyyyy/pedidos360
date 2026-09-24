@@ -9,12 +9,16 @@ const ORDERS_TABLE = process.env.ORDERS_TABLE;
 
 const handler = async (event) => {
   const { id } = event.pathParameters;
+  const user = event.user;
 
   const result = await dynamoDb.send(
-    new GetCommand({ TableName: ORDERS_TABLE, Key: { id } })
+    new GetCommand({ TableName: ORDERS_TABLE, Key: { pk: `ORDER#${id}`, sk: `ORDER#${id}` } })
   );
 
   if (!result.Item) return error('Pedido no encontrado', 404);
+  if (user.roles.includes('cliente') && result.Item.customerId !== (user.oid || user.email)) {
+    return error('No tienes permiso para acceder a este pedido', 403);
+  }
   return success(result.Item);
 };
 

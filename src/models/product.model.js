@@ -3,7 +3,7 @@ const { z } = require('zod');
 const createProductSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
-  price: z.number().nonnegative(),
+  price: z.number().int().nonnegative(),
   stock: z.number().int().nonnegative(),
   category: z.string().optional(),
 });

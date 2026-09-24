@@ -14,6 +14,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      recreate_dev:
+        description: 'Eliminar y recrear completamente el stack dev'
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   deploy:
@@ -53,6 +59,10 @@ jobs:
           AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
           AZURE_API_AUDIENCE=${{ secrets.AZURE_API_AUDIENCE }}
           EOF
+
+      - name: Eliminar stack dev para recrear la tabla
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.recreate_dev == true }}
+        run: npx serverless remove --stage dev
 
       - name: Deploy con Serverless Framework
         run: npx serverless deploy --stage dev
