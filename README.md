@@ -1,7 +1,8 @@
 # Pedidos360 — Backend Serverless (AWS Lambda + API Gateway + DynamoDB)
 
-Backend de la primera instancia de Pedidos360, desplegado con **Serverless
-Framework** sobre una cuenta educativa de AWS (AWS Academy Learner Lab).
+Backend serverless de Pedidos360, desplegado con **Serverless Framework** sobre
+AWS Lambda, API Gateway HTTP API, DynamoDB y S3. El proyecto también puede
+ejecutarse localmente con `serverless-offline`.
 
 ## 1. Qué incluye esta primera instancia
 
@@ -12,6 +13,7 @@ De los 5 microservicios de la tabla original, en esta etapa se implementan y
 |---|---|---|
 | `ms-pedidos360-orders` | `/api/orders/*` | ✅ Implementado (DynamoDB) |
 | `ms-pedidos360-catalog` | `/api/catalog/*` | ✅ Implementado (DynamoDB) |
+| Imágenes de catálogo | S3 + URLs prefirmadas | ✅ Implementado |
 | `ms-pedidos360-notify` | consumidor RabbitMQ | ⏸️ Esqueleto en `src/functions/notify`, **no desplegado** |
 | `ms-pedidos360-audit` | `/api/audit/*` (Kafka) | ⏸️ Esqueleto en `src/functions/audit`, **no desplegado** |
 | `ms-pedidos360-report` | `/api/report/*` (Kafka) | ⏸️ Esqueleto en `src/functions/report`, **no desplegado** |
@@ -43,13 +45,18 @@ Cliente React + MSAL
    AWS Lambda (Node.js 20)
         │
         ▼
-     DynamoDB (2 tablas: orders, catalog)
+    DynamoDB (orders, catalog)        S3 (imágenes)
 ```
 
 La validación del JWT la hace **API Gateway directamente** (authorizer tipo
 `jwt`), sin necesidad de una Lambda authorizer custom: Azure Entra ID expone
 un endpoint de OpenID estándar y API Gateway sabe consumirlo. Esto es lo que
 te da "API Gateway como capa de seguridad".
+
+Las imágenes de los productos se cargan directamente desde el frontend al
+bucket S3 mediante una URL prefirmada generada por la Lambda de catálogo. El
+bucket mantiene el acceso público bloqueado y utiliza CORS únicamente para
+las cargas `PUT` desde `http://localhost:5173`.
 
 ## 3. Requisitos previos
 
@@ -104,8 +111,14 @@ AWS_SECRET_ACCESS_KEY=...
 AWS_SESSION_TOKEN=...
 AWS_ACCOUNT_ID=...
 AWS_REGION=us-east-1
+S3_BUCKET=pedidos360-product-images-dev-REPLACE_WITH_UNIQUE_SUFFIX
 AWS_ROLE_ARN=arn:aws:iam::<tu-account-id>:role/LabRole
 ```
+
+`S3_BUCKET` debe ser un nombre globalmente único. El bucket se crea y
+configura mediante CloudFormation al desplegar el stack. CORS está configurado
+actualmente para `http://localhost:5173` en API Gateway, S3 y las respuestas
+de Lambda.
 
 ### Por qué `AWS_ROLE_ARN` y no el rol autogenerado de Serverless
 
@@ -174,7 +187,7 @@ npm run remove
 | Método | Path | Descripción |
 |---|---|---|
 | POST | `/api/orders` | Crea un pedido y descuenta stock (transaccional) |
-| GET | `/api/orders` | Lista pedidos (`?status=PENDING` opcional) |
+| GET | `/api/orders` | Lista pedidos (`?status=PENDING`, `?limit=20` y `?nextToken=...` opcionales) |
 | GET | `/api/orders/{id}` | Obtiene un pedido |
 | PUT | `/api/orders/{id}/status` | Actualiza el estado del pedido |
 | DELETE | `/api/orders/{id}` | Elimina un pedido |
@@ -188,8 +201,30 @@ npm run remove
 | GET | `/api/catalog/{id}` | Obtiene un producto |
 | PUT | `/api/catalog/{id}` | Actualiza un producto (parcial) |
 | DELETE | `/api/catalog/{id}` | Elimina un producto |
+| POST | `/api/catalog/{id}/image-url` | Genera una URL prefirmada para cargar una imagen |
 
-Todos requieren header `Authorization: Bearer <token-de-azure-ad>`.
+La carga de imágenes acepta `image/jpeg`, `image/png`, `image/webp` y
+`image/gif`, con un máximo de 5 MiB. El cliente debe enviar el archivo con
+`PUT` a la URL devuelta, usando el mismo `Content-Type` informado al solicitar
+la URL. Las URLs de lectura de imágenes también son prefirmadas.
+
+Todos los endpoints requieren el header
+`Authorization: Bearer <token-de-azure-ad>`.
+
+### Roles y permisos
+
+| Operación | Roles permitidos |
+|---|---|
+| Leer catálogo | `admin`, `operador`, `cliente` |
+| Crear, actualizar o eliminar productos | `admin` |
+| Crear, leer o cancelar pedidos | `admin`, `operador`, `cliente` |
+| Cambiar estado de pedidos | `admin`, `operador` |
+
+Los clientes solo consultan sus propios pedidos. Los usuarios administrativos
+y operadores pueden consultar el listado general. Los estados válidos son
+`PENDING`, `CONFIRMED`, `PREPARING`, `READY`, `DELIVERED` y `CANCELLED`.
+Las transiciones se validan en el backend y las actualizaciones soportan
+`expectedVersion` para detectar conflictos.
 
 ## 8. CI/CD (GitHub Actions)
 
@@ -205,6 +240,7 @@ hacer push a `main`. Necesita estos **secrets** en el repo
 - `AWS_ROLE_ARN`
 - `AZURE_TENANT_ID`
 - `AZURE_API_AUDIENCE`
+- `S3_BUCKET`
 
 **Ojo con Learner Lab**: como las credenciales expiran, el workflow va a
 empezar a fallar solo hasta que actualices `AWS_SESSION_TOKEN` (y
@@ -217,7 +253,7 @@ rechazada por AWS.
 ## 9. Estructura del proyecto
 
 ```
-mi-backend-serverless/
+pedidos360-backend/
 ├── src/
 │   ├── functions/
 │   │   ├── orders/        # createOrder, getOrder, getOrders, updateOrderStatus, deleteOrder
@@ -226,12 +262,13 @@ mi-backend-serverless/
 │   │   ├── audit/         # stub, pendiente Kafka (no desplegado)
 │   │   └── report/        # stub, pendiente Kafka (no desplegado)
 │   ├── libs/
-│   │   ├── db/dynamoClient.js
-│   │   ├── utils/{response.js,logger.js}
-│   │   └── middlewares/{auth.js,errorHandler.js}
+│   │   ├── constants/{permissions.js,roles.js}
+│   │   ├── db/{dynamoClient.js,s3Client.js}
+│   │   ├── middlewares/{auth.js,errorHandler.js,requireRoles.js}
+│   │   └── utils/{response.js,logger.js}
 │   └── models/{order.model.js,product.model.js}
-├── infra/resources/dynamodb.yml   # tablas DynamoDB (CloudFormation)
-├── tests/unit/...
+├── infra/resources/{dynamodb.yml,s3.yml} # recursos CloudFormation
+├── tests/unit/libs/response.test.js
 ├── .github/workflows/deploy.yml
 ├── serverless.yml
 ├── package.json
@@ -243,7 +280,15 @@ mi-backend-serverless/
 > `handler.js` (sin `index.js` intermedio), porque `serverless.yml` apunta
 > directo a `handler.js` y ese archivo extra no aportaba nada funcional acá.
 
-## 10. Próximos pasos sugeridos
+## 10. Ejecutar pruebas
+
+```bash
+npm test
+```
+
+La suite actual valida el helper común de respuestas HTTP y sus headers CORS.
+
+## 11. Próximos pasos sugeridos
 
 - **notify**: crear un broker (Amazon MQ para RabbitMQ) y una Lambda
   disparada por ese broker; `createOrder` publicaría un evento al confirmar
