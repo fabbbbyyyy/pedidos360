@@ -10,4 +10,8 @@ const createProductSchema = z.object({
 
 const updateProductSchema = createProductSchema.partial();
 
-module.exports = { createProductSchema, updateProductSchema };
+const productImageSchema = z.object({
+  imageKey: z.string().regex(/^products\/[\w-]+\/[\w.-]+$/).nullable(),
+});
+
+module.exports = { createProductSchema, updateProductSchema, productImageSchema };

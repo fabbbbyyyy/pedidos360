@@ -30,6 +30,7 @@ provider:
     STAGE: ${self:provider.stage}
     ORDERS_TABLE: ${self:custom.ordersTable}
     CATALOG_TABLE: ${self:custom.catalogTable}
+    S3_BUCKET: ${self:custom.imagesBucket}
 
   httpApi:
     cors:
@@ -56,6 +57,7 @@ provider:
 custom:
   ordersTable: pedidos360-orders-${self:provider.stage}
   catalogTable: pedidos360-catalog-${self:provider.stage}
+  imagesBucket: ${env:S3_BUCKET}
   # serverless-dotenv-plugin por defecto inyecta TODAS las variables del
   # .env como environment vars de cada Lambda. Acá lo evitamos para las
   # variables de AWS, porque AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
@@ -165,6 +167,15 @@ functions:
           authorizer:
             name: azureAdAuthorizer
 
+  createImageUploadUrl:
+    handler: src/functions/catalog/createImageUploadUrl/handler.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /api/catalog/{id}/image-url
+          authorizer:
+            name: azureAdAuthorizer
+
   deleteProduct:
     handler: src/functions/catalog/deleteProduct/handler.handler
     events:
@@ -184,3 +195,4 @@ functions:
 
 resources:
   - ${file(infra/resources/dynamodb.yml)}
+  - ${file(infra/resources/s3.yml)}
