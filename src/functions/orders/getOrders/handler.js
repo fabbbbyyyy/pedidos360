@@ -21,11 +21,11 @@ const handler = async (event) => {
   if (isClient) {
     params.IndexName = 'GSI1';
     params.KeyConditionExpression = 'gsi1pk = :customerId';
-    params.ExpressionAttributeValues = { ':customerId': `CUSTOMER#${user.oid || user.email}` };
+    params.ExpressionAttributeValues = { ':customerId': `CUSTOMER#${user.customerId}` };
   } else {
-    params.IndexName = 'GSI2';
-    params.KeyConditionExpression = 'gsi2pk = :orders';
-    params.ExpressionAttributeValues = { ':orders': 'ORDERS' };
+    params.IndexName = 'GSI3';
+    params.KeyConditionExpression = 'gsi3pk = :tenantId';
+    params.ExpressionAttributeValues = { ':tenantId': `TENANT#${user.tenantId}` };
   }
 
   if (status) {
@@ -34,15 +34,16 @@ const handler = async (event) => {
     params.ExpressionAttributeValues[':status'] = status;
   }
 
-  if (event.queryStringParameters?.nextToken) {
-    params.ExclusiveStartKey = JSON.parse(Buffer.from(event.queryStringParameters.nextToken, 'base64url').toString());
+  if (event.queryStringParameters?.nextToken || event.queryStringParameters?.cursor) {
+    const cursorToken = event.queryStringParameters.nextToken || event.queryStringParameters.cursor;
+    params.ExclusiveStartKey = JSON.parse(Buffer.from(cursorToken, 'base64url').toString());
   }
 
   const result = await dynamoDb.send(new QueryCommand(params));
-  const nextToken = result.LastEvaluatedKey
+  const nextCursor = result.LastEvaluatedKey
     ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64url')
     : null;
-  return success({ items: result.Items || [], nextToken });
+  return success({ items: result.Items || [], nextCursor, nextToken: nextCursor });
 };
 
 module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.orders.read)(handler)),};

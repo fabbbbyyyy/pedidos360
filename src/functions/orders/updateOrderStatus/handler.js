@@ -5,6 +5,7 @@ const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { ORDER_TRANSITIONS, updateOrderStatusSchema } = require('../../../models/order.model');
 const { changeOrderStatus } = require('../services/changeOrderStatus');
 const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const { authorizeOrderAccess } = require('../../../libs/middlewares/auth');
 const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const ORDERS_TABLE = process.env.ORDERS_TABLE;
@@ -19,7 +20,7 @@ const handler = async (event) => {
   const current = currentResult.Item;
 
   if (!current) return error('Pedido no encontrado', 404);
-  if (user.roles.includes('cliente') && current.customerId !== (user.oid || user.email)) {
+  if (!authorizeOrderAccess(user, current)) {
     return error('No tienes permiso para modificar este pedido', 403);
   }
   if (!(ORDER_TRANSITIONS[current.status] || []).includes(status)) {
@@ -33,6 +34,7 @@ const handler = async (event) => {
     order: current,
     status,
     expectedVersion: expectedVersion ?? (current.version || 1),
+    user,
   }));
 };
 

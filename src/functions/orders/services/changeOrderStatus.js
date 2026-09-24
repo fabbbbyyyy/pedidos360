@@ -1,19 +1,27 @@
 const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { dynamoDb } = require('../../../libs/db/dynamoClient');
+const { buildHistoryEvent, appendHistoryEvent } = require('../../../libs/utils/orderHistory');
 
 const ORDERS_TABLE = process.env.ORDERS_TABLE;
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
-const changeOrderStatus = async ({ order, status, expectedVersion }) => {
+const changeOrderStatus = async ({ order, status, expectedVersion, user }) => {
   const version = order.version || 1;
   const updatedAt = new Date().toISOString();
   const orderKey = { pk: order.pk, sk: order.sk };
+  const history = appendHistoryEvent(order.history || [], buildHistoryEvent({
+    fromStatus: order.status,
+    toStatus: status,
+    user,
+    changedAt: updatedAt,
+  }));
+
   const transactItems = [{
     Update: {
       TableName: ORDERS_TABLE,
       Key: orderKey,
       ConditionExpression: '#status = :currentStatus AND version = :expectedVersion',
-      UpdateExpression: 'SET #status = :status, updatedAt = :updatedAt, version = :nextVersion',
+      UpdateExpression: 'SET #status = :status, updatedAt = :updatedAt, version = :nextVersion, history = :history',
       ExpressionAttributeNames: { '#status': 'status' },
       ExpressionAttributeValues: {
         ':currentStatus': order.status,
@@ -21,6 +29,7 @@ const changeOrderStatus = async ({ order, status, expectedVersion }) => {
         ':updatedAt': updatedAt,
         ':expectedVersion': expectedVersion,
         ':nextVersion': version + 1,
+        ':history': history,
       },
     },
   }];
@@ -48,7 +57,7 @@ const changeOrderStatus = async ({ order, status, expectedVersion }) => {
     throw err;
   }
 
-  return { ...order, status, updatedAt, version: version + 1 };
+  return { ...order, status, updatedAt, version: version + 1, history };
 };
 
 module.exports = { changeOrderStatus };

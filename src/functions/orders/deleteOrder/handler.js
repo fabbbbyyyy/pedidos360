@@ -3,6 +3,7 @@ const { dynamoDb } = require('../../../libs/db/dynamoClient');
 const { success, error } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const { authorizeOrderAccess } = require('../../../libs/middlewares/auth');
 const PERMISSIONS = require('../../../libs/constants/permissions');
 const { changeOrderStatus } = require('../services/changeOrderStatus');
 
@@ -17,7 +18,7 @@ const handler = async (event) => {
   }));
   if (!result.Item) return error('Pedido no encontrado', 404);
   const user = event.user;
-  if (user.roles.includes('cliente') && result.Item.customerId !== (user.oid || user.email)) {
+  if (!authorizeOrderAccess(user, result.Item)) {
     return error('No tienes permiso para cancelar este pedido', 403);
   }
   if (result.Item.status !== 'PENDING' && result.Item.status !== 'CONFIRMED') {
@@ -28,6 +29,7 @@ const handler = async (event) => {
     order: result.Item,
     status: 'CANCELLED',
     expectedVersion: result.Item.version || 1,
+    user,
   }));
 };
 

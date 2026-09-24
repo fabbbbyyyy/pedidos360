@@ -4,9 +4,10 @@ const { BatchGetCommand, GetCommand, TransactWriteCommand } = require('@aws-sdk/
 const { dynamoDb } = require('../../../libs/db/dynamoClient');
 const { success } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
-const { getUserFromEvent } = require('../../../libs/middlewares/auth');
+const { getUserFromEvent, ensureClientCreateRequest } = require('../../../libs/middlewares/auth');
 const { createOrderSchema } = require('../../../models/order.model');
 const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const { buildHistoryEvent } = require('../../../libs/utils/orderHistory');
 const PERMISSIONS = require('../../../libs/constants/permissions');
 
 const ORDERS_TABLE = process.env.ORDERS_TABLE;
@@ -18,9 +19,18 @@ const encodeHash = (value) => crypto.createHash('sha256').update(JSON.stringify(
 
 const handler = async (event) => {
   const body = JSON.parse(event.body || '{}');
-  const data = createOrderSchema.parse(body);
   const user = event.user || getUserFromEvent(event);
-  const customerId = user.oid || user.email;
+  const data = createOrderSchema.parse(body);
+  ensureClientCreateRequest(user, body);
+
+  const requestedCustomerId = typeof body.customerId === 'string' && body.customerId.trim()
+    ? body.customerId.trim()
+    : null;
+
+  const customerId = user.roles.includes('cliente')
+    ? user.customerId
+    : (requestedCustomerId || user.customerId);
+  const tenantId = user.tenantId || 'default';
   const requestIdempotencyKey = event.headers?.['Idempotency-Key'] || event.headers?.['idempotency-key'];
 
   if (!requestIdempotencyKey) {
@@ -75,11 +85,19 @@ const handler = async (event) => {
     };
   });
   const subtotal = items.reduce((acc, item) => acc + item.lineTotal, 0);
+  const history = [buildHistoryEvent({
+    fromStatus: null,
+    toStatus: 'PENDING',
+    user,
+    changedAt: now,
+  })];
+
   const order = {
     ...orderKey(orderId),
     id: orderId,
     entityType: 'ORDER',
     customerId,
+    tenantId,
     createdBy: user.email || customerId,
     status: 'PENDING',
     items,
@@ -89,10 +107,13 @@ const handler = async (event) => {
     createdAt: now,
     updatedAt: now,
     version: 1,
+    history,
     gsi1pk: `CUSTOMER#${customerId}`,
     gsi1sk: now,
     gsi2pk: 'ORDERS',
     gsi2sk: `${now}#${orderId}`,
+    gsi3pk: `TENANT#${tenantId}`,
+    gsi3sk: `${now}#${orderId}`,
   };
 
   // "Coordinación de stock" (responsabilidad de ms-pedidos360-orders):
