@@ -94,6 +94,8 @@ functions:
           path: /api/orders
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - order.write
 
   getOrders:
     handler: src/functions/orders/getOrders/handler.handler
@@ -103,6 +105,8 @@ functions:
           path: /api/orders
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - order.read
 
   getOrder:
     handler: src/functions/orders/getOrder/handler.handler
@@ -112,6 +116,8 @@ functions:
           path: /api/orders/{id}
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - order.read
 
   updateOrderStatus:
     handler: src/functions/orders/updateOrderStatus/handler.handler
@@ -121,6 +127,8 @@ functions:
           path: /api/orders/{id}/status
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - order.write
 
   deleteOrder:
     handler: src/functions/orders/deleteOrder/handler.handler
@@ -130,6 +138,8 @@ functions:
           path: /api/orders/{id}
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - order.write
 
   # ============ ms-pedidos360-catalog  →  /api/catalog/* ===========
   createProduct:
@@ -140,6 +150,8 @@ functions:
           path: /api/catalog
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - catalog.write
 
   getProducts:
     handler: src/functions/catalog/getProducts/handler.handler
@@ -149,6 +161,8 @@ functions:
           path: /api/catalog
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - catalog.read
 
   getProduct:
     handler: src/functions/catalog/getProduct/handler.handler
@@ -158,6 +172,8 @@ functions:
           path: /api/catalog/{id}
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - catalog.read
 
   updateProduct:
     handler: src/functions/catalog/updateProduct/handler.handler
@@ -167,6 +183,8 @@ functions:
           path: /api/catalog/{id}
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - catalog.write
 
   createImageUploadUrl:
     handler: src/functions/catalog/createImageUploadUrl/handler.handler
@@ -176,6 +194,8 @@ functions:
           path: /api/catalog/{id}/image-url
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - catalog.write
 
   deleteProduct:
     handler: src/functions/catalog/deleteProduct/handler.handler
@@ -185,6 +205,8 @@ functions:
           path: /api/catalog/{id}
           authorizer:
             name: azureAdAuthorizer
+            scopes:
+              - catalog.write
 
   # ==================================================================
   # ms-pedidos360-notify / audit / report
